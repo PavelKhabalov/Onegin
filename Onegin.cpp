@@ -3,6 +3,9 @@
 #include <ctype.h>
 #include <assert.h>
 
+
+struct text_info make_text_info(FILE* text);
+
 struct str* make_strs(char* buffer, size_t nlines);
 
 /*!
@@ -52,7 +55,7 @@ void swapstr(struct str* a, struct str* b);
 \param output file that's output
 \return nothing
 */
-void foutput(struct str* strs, FILE* output, int nlines);
+void foutput(struct str* strs, int nlines, FILE* output);
 
 /*!
 \brief output string to file
@@ -62,6 +65,8 @@ void foutput(struct str* strs, FILE* output, int nlines);
 */
 void putstr(char* s, FILE* output);
 
+void free_info(struct text_info poem);
+
 /*
 \param begin_, end_ adresses of begin str and end str
 */
@@ -70,6 +75,15 @@ struct str
     char* begin_;
     char* end_;
     };
+
+struct text_info
+    {
+    char* buffer;
+    struct str* strs;
+    size_t nlines;
+    size_t len;
+    };
+
 
 
 int main(int argc, char** argv)
@@ -88,33 +102,50 @@ int main(int argc, char** argv)
     assert(text   != NULL);
     assert(result != NULL);
 
-    size_t len = 0, nlines = 0;
-    len = filelen(text);
+    struct text_info poem = make_text_info(text);
 
-    char* buffer = (char*) calloc(len + 1, sizeof(char));
-
-    nlines = readf(text, buffer, len);
     fclose(text);
 
-    struct str* strs = make_strs(buffer, nlines);
+    strsort(poem.strs, poem.nlines, 0);
+    foutput(poem.strs, poem.nlines, result);
 
-    strsort(strs, nlines, 0);
-    foutput(strs, result, nlines);
+    fprintf(result, "\n=====================\n\n");
 
-    putstr("----------------\n", result);
+    strsort(poem.strs, poem.nlines, 1);
+    foutput(poem.strs, poem.nlines, result);
 
-    strsort(strs, nlines, 1);
-    foutput(strs, result, nlines);
+    fprintf(result, "\n=====================\n\n");
+
+    fprintf(result, "%s", poem.buffer);
 
     fclose(result);
-    free(buffer);
-    free(strs);
+
+    free_info(poem);
 
     return 0;
     }
 
 
 //-----------------------------------------------------------------------------
+
+struct text_info make_text_info(FILE* text)
+    {
+    size_t len = 0, nlines = 0;
+    len = filelen(text);
+
+    char* buffer = (char*) calloc(len + 1, sizeof(char));
+    nlines = readf(text, buffer, len);
+
+    struct str* strs = make_strs(buffer, nlines);
+
+    struct text_info poem = {buffer, strs, nlines, len};
+
+    return poem;
+    }
+
+
+//-----------------------------------------------------------------------------
+
 
 size_t filelen(FILE* text)
     {
@@ -153,6 +184,9 @@ size_t readf(FILE* text, char* buffer, size_t len)
     }
 
 
+//-----------------------------------------------------------------------------
+
+
 struct str* make_strs(char* buffer, size_t nlines)
     {
     struct str* strs = (struct str*) calloc(nlines, sizeof(struct str));
@@ -183,7 +217,7 @@ void strsort(struct str* strs, int nlines, bool cmp_by_end)
         {
         for (int i = 0; i < nlines; i++)
             {
-            if (comparestr(strs[i], strs[i + 1], cmp_by_end) == 1)
+            if (comparestr(*(strs + i), *(strs + i + 1), cmp_by_end) == 1)
                 {
                 swapstr(strs + i, strs + i + 1);
                 }
@@ -259,13 +293,13 @@ void swapstr(struct str* a, struct str* b)
 
 //-----------------------------------------------------------------------------
 
-void foutput(struct str* strs, FILE* output, int nlines)
+void foutput(struct str* strs, int nlines, FILE* output)
     {
     for (int i = 0; i < nlines; i++)
         {
-        if (!(strs[i].begin_ == strs[i].end_))
+        if (!((strs + i) -> begin_ == (strs + i) -> end_))
             {
-            putstr(strs[i].begin_, output);
+            putstr((strs + i) -> begin_, output);
             }
         }
     }
@@ -275,7 +309,7 @@ void foutput(struct str* strs, FILE* output, int nlines)
 
 void putstr(char* s, FILE* output)
     {
-    for (int i = 0;; i++)
+    for (int i = 0; s[i] != '\0'; i++)
         {
         putc(s[i], output);
         if (s[i] == '\n')
@@ -287,3 +321,9 @@ void putstr(char* s, FILE* output)
 
 
 //-----------------------------------------------------------------------------
+
+void free_info(struct text_info poem)
+    {
+    free(poem.buffer);
+    free(poem.strs);
+    }
